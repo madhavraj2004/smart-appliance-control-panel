@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Smart Appliance Control Panel</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(to right, #e3f2fd, #bbdefb);
+      margin: 0;
+      padding: 20px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #1565c0;
+    }
+
+    .button-container {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      border-radius: 6px;
+      margin: 0 10px;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    button:first-child {
+      background-color: #1e88e5;
+      color: white;
+    }
+
+    button:nth-child(2) {
+      background-color: #43a047;
+      color: white;
+    }
+
+    .appliance-container {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 20px;
+    }
+
+    .appliance-card {
+      background-color: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      width: 300px;
+    }
+
+    .appliance-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 15px;
+    }
+
+    .prompt {
+      border-top: 1px solid #ddd;
+      padding-top: 10px;
+      margin-top: 10px;
+    }
+
+    .prompt p {
+      margin: 4px 0;
+    }
+
+    .label {
+      font-weight: bold;
+      color: #555;
+    }
+
+    /* Popup & JSON styles */
+    .popup, .json-popup {
+      display: none;
+      position: relative;
+      margin: 20px auto;
+      padding: 20px;
+      max-width: 600px;
+      background: white;
+      border-radius: 10px;
+      border: 1px solid #64b5f6;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: all 0.3s ease;
+    }
+
+    .popup.show, .json-popup.show {
+      display: block;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .close {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 20px;
+      color: red;
+      cursor: pointer;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 6px;
+      margin-top: 5px;
+      border: 1px solid #90caf9;
+      border-radius: 4px;
+    }
+
+    .section {
+      margin-bottom: 15px;
+      border: 1px solid #90caf9;
+      padding: 10px;
+      border-radius: 5px;
+      background: #e3f2fd;
+    }
+
+    #stateContainer {
+      max-height: 200px;
+      overflow-y: auto;
+      background: #ffffff;
+      border: 1px solid #90caf9;
+      border-radius: 5px;
+      padding: 8px;
+    }
+
+    .delete-btn {
+      background-color: #d32f2f;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      cursor: pointer;
+      margin-top: 5px;
+      border-radius: 5px;
+      transition: background 0.3s;
+    }
+
+    .delete-btn:hover {
+      background: #b71c1c;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Smart Appliance Control Panel</h1>
+
+<div class="button-container">
+  <button onclick="showPopup()">+ Add Appliance</button>
+  <button onclick="reviveAppliance()">Revive</button>
+</div>
+
+<!-- Add Appliance Popup -->
+<div class="popup" id="addPopup">
+  <span class="close" onclick="closePopup()">&times;</span>
+  <h3>Add Appliance</h3>
+  <div class="section">
+    <label>Appliance Name</label>
+    <input type="text" id="applianceName" class="input-field">
+  </div>
+  <div class="section">
+    <label>Description</label>
+    <input type="text" id="description" class="input-field">
+  </div>
+  <h4>State</h4>
+  <div id="stateContainer"></div>
+  <button onclick="addState()" style="background: #ffb300; color: white;">Add State</button>
+  <button onclick="saveDetails()" style="background: #0288d1; color: white;">Save</button>
+</div>
+
+<!-- Appliance Display Section -->
+<div class="appliance-container" id="appliance-container"></div>
+
+<!-- JSON Popup -->
+<div class="json-popup" id="jsonPopup">
+  <span class="close" onclick="closeJsonPopup()">&times;</span>
+  <h3>JSON Response</h3>
+  <div id="jsonContent" style="white-space: pre-wrap;"></div>
+</div>
+
+<script>
+  function showPopup() {
+    document.getElementById('addPopup').classList.add('show');
+  }
+
+  function closePopup() {
+    document.getElementById('addPopup').classList.remove('show');
+  }
+
+  function closeJsonPopup() {
+    document.getElementById('jsonPopup').classList.remove('show');
+  }
+
+  function addState() {
+    let stateContainer = document.getElementById("stateContainer");
+    let newState = document.createElement("div");
+    newState.classList.add("section");
+    newState.innerHTML = `
+      <label>Name</label>
+      <input type="text" class="input-field state-name">
+      <label>Description</label>
+      <input type="text" class="input-field state-desc">
+      <label>Type</label>
+      <select class="input-field state-type" onchange="toggleFields(this)">
+        <option value="Boolean">Boolean</option>
+        <option value="Number">Number</option>
+        <option value="List">List</option>
+      </select>
+      <div class="NumberFields" style="display: none;">
+        <label>Low Limit</label>
+        <input type="number" class="input-field low-limit">
+        <label>High Limit</label>
+        <input type="number" class="input-field high-limit">
+      </div>
+      <div class="ListField" style="display: none;">
+        <label>Comma-separated values</label>
+        <input type="text" class="input-field List-values">
+      </div>
+    `;
+    stateContainer.appendChild(newState);
+  }
+
+  function toggleFields(select) {
+    const parent = select.parentElement;
+    parent.querySelector(".NumberFields").style.display = (select.value === "Number") ? "block" : "none";
+    parent.querySelector(".ListField").style.display = (select.value === "List") ? "block" : "none";
+  }
+
+  async function saveDetails() {
+    const applianceName = document.getElementById("applianceName").value;
+    const states = document.querySelectorAll("#stateContainer .section");
+    const appliancePrompts = [];
+
+    states.forEach(state => {
+      const name = state.querySelector(".state-name").value;
+      const description = state.querySelector(".state-desc").value;
+      const type = state.querySelector(".state-type").value;
+      let valid_range = null;
+
+      if (type === "Number") {
+        const low = state.querySelector(".low-limit").value;
+        const high = state.querySelector(".high-limit").value;
+        valid_range = [Number(low), Number(high)];
+      } else if (type === "List") {
+        const values = state.querySelector(".List-values").value;
+        valid_range = values.split(",").map(v => v.trim());
+      }
+
+      const prompt = { name, description, type };
+      if (valid_range) prompt.valid_range = valid_range;
+      appliancePrompts.push(prompt);
+    });
+
+    const applianceData = {
+      applianceName,
+      appliancePrompts
+    };
+
+    try {
+      const postRes = await fetch('http://52.250.54.24:3500/api/appliances/store', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(applianceData)
+      });
+
+      const postResult = await postRes.json();
+
+      document.getElementById("jsonContent").textContent = 'POST Response:\n' + JSON.stringify(postResult, null, 4);
+      closePopup();
+      document.getElementById("jsonPopup").classList.add("show");
+
+    } catch (error) {
+      document.getElementById("jsonContent").textContent = "Error: " + error.message;
+      document.getElementById("jsonPopup").classList.add("show");
+    }
+  }
+
+  async function reviveAppliance() {
+    try {
+      const res = await fetch('http://52.250.54.24:3500/api/appliances');
+      const data = await res.json();
+
+      document.getElementById("jsonContent").textContent = 'GET Response:\n' + JSON.stringify(data, null, 4);
+      
+
+      displayAppliances(Array.isArray(data) ? data : [data]);
+
+    } catch (error) {
+      document.getElementById("jsonContent").textContent = "Error: " + error.message;
+      document.getElementById("jsonPopup").classList.add("show");
+    }
+  }
+
+  function displayAppliances(appliances) {
+    const container = document.getElementById("appliance-container");
+    container.innerHTML = '';
+
+    appliances.forEach(appliance => {
+      const card = document.createElement("div");
+      card.className = "appliance-card";
+
+      const title = document.createElement("div");
+      title.className = "appliance-title";
+      title.textContent = appliance.applianceName || "Unnamed Appliance";
+      card.appendChild(title);
+
+      appliance.appliancePrompts?.forEach(p => {
+        const promptDiv = document.createElement("div");
+        promptDiv.className = "prompt";
+        promptDiv.innerHTML = `
+          <p><span class="label">Name:</span> ${p.name}</p>
+          <p><span class="label">Description:</span> ${p.description}</p>
+          <p><span class="label">Type:</span> ${p.type}</p>
+          ${p.valid_range ? `<p><span class="label">Valid Range:</span> ${JSON.stringify(p.valid_range)}</p>` : ""}
+        `;
+        card.appendChild(promptDiv);
+      });
+
+      container.appendChild(card);
+    });
+  }
+</script>
+
+</body>
+</html>
